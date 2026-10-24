@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCI Memory Firing & Dialogue Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050811;
+            color: #e2e8f0;
+            user-select: none;
+        }
+
+        .font-mono-code {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0ea5e9;
+        }
+
+        /* Glowing and Alert Effects */
+        .glow-cyan {
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.3);
+        }
+        .glow-red {
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .pulse-alert {
+            animation: pulseAlert 1.2s infinite ease-in-out;
+        }
+
+        @keyframes pulseAlert {
+            0%, 100% { opacity: 1; border-color: rgba(239, 68, 68, 0.8); }
+            50% { opacity: 0.4; border-color: rgba(239, 68, 68, 0.2); }
+        }
+
+        .typing-dots span {
+            animation: blink 1.4s infinite;
+            fill-mode: both;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: .2s; }
+        .typing-dots span:nth-child(3) { animation-delay: .4s; }
+
+        @keyframes blink {
+            0% { opacity: .2; }
+            20% { opacity: 1; }
+            100% { opacity: .2; }
+        }
+
+        .neural-scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(6, 182, 212, 0.05) 50%,
+                rgba(6, 182, 212, 0.05)
+            );
+            background-size: 100% 4px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 text-slate-100 antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-sm">
+                <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="text-xs font-bold tracking-wider uppercase text-slate-100 flex items-center gap-2">
+                    SynapTech BCI <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">v4.2 Categorized Cortex</span>
+                </h1>
+                <p class="text-[10px] text-slate-400">Cortical Memory Firing & Dynamic Telemetry Engine</p>
+            </div>
+        </div>
+
+        <!-- Scenario Switcher & Controls -->
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center bg-slate-950 rounded-lg p-1 border border-slate-800">
+                <button id="scenario-1-btn" onclick="switchScenario(0)" class="px-3 py-1 rounded text-xs font-medium transition-all bg-cyan-600 text-white shadow">
+                    Ethics Defense
+                </button>
+                <button id="scenario-2-btn" onclick="switchScenario(1)" class="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white transition-all">
+                    Cyber Memory Leak
+                </button>
+            </div>
+
+            <button id="audio-toggle-btn" onclick="toggleAudio()" class="p-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-600 text-slate-300 transition-colors" title="Toggle Sound">
+                <i id="audio-icon" data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Grid Layout -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden gap-3 p-3 relative">
+        <div class="absolute inset-0 pointer-events-none z-10 neural-scanline opacity-30"></div>
+
+        <!-- LEFT PANEL: Character Diagnostics & Expressive Vector Renderer (3.5 Cols) -->
+        <section class="lg:col-span-4 flex flex-col bg-slate-900/70 rounded-xl border border-slate-800 overflow-hidden relative shadow-lg">
+            <div class="p-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center">
+                <div>
+                    <h2 id="subject-name" class="font-bold text-sm text-slate-200">Dr. Aris Thorne</h2>
+                    <p id="subject-role" class="text-xs text-slate-400">Chair of Ethics Board</p>
+                </div>
+                <div class="text-right">
+                    <span id="subject-status" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Dynamic Focus
+                    </span>
+                </div>
+            </div>
+
+            <!-- Vector Character Canvas -->
+            <div class="flex-1 relative flex items-center justify-center bg-slate-950/90 overflow-hidden">
+                <canvas id="portraitCanvas" class="w-full h-full object-contain"></canvas>
+                
+                <!-- Real-time Telemetry Metrics -->
+                <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                    <div class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded px-2.5 py-1 text-[11px] font-mono-code text-slate-300 flex items-center gap-2">
+                        <i data-lucide="eye" class="w-3.5 h-3.5 text-cyan-400"></i>
+                        <span>PUPIL: <span id="telemetry-pupil" class="text-cyan-400 font-bold">3.8mm</span></span>
+                    </div>
+                    <div id="stress-metric-box" class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded px-2.5 py-1 text-[11px] font-mono-code text-slate-300 flex items-center gap-2">
+                        <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>STRESS: <span id="telemetry-stress" class="text-amber-400 font-bold">24%</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Biosignals Bar -->
+            <div class="p-3 bg-slate-900/95 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between font-mono-code">
+                <span class="flex items-center gap-1.5">
+                    <i data-lucide="heart-pulse" class="w-4 h-4 text-red-400 animate-pulse"></i>
+                    BPM: <strong id="telemetry-bpm" class="text-slate-200">74</strong>
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <i data-lucide="waves" class="w-4 h-4 text-cyan-400"></i>
+                    Alpha: <strong id="telemetry-alpha" class="text-slate-200">12.4 Hz</strong>
+                </span>
+            </div>
+        </section>
+
+        <!-- CENTER PANEL: Dynamic Narrative Dialogue Stream (4.5 Cols) -->
+        <section class="lg:col-span-4 flex flex-col bg-slate-900/70 rounded-xl border border-slate-800 overflow-hidden shadow-lg relative">
+            <div class="p-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center">
+                <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                    <i data-lucide="message-square" class="w-4 h-4 text-cyan-400"></i>
+                    Live Telemetry Dialogue
+                </h3>
+                <span id="story-chapter-badge" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                    ACT I - PHASE 1
+                </span>
+            </div>
+
+            <!-- Dialogue History / Scroll View -->
+            <div id="dialogue-container" class="flex-1 p-4 overflow-y-auto space-y-4">
+                <!-- Dialogue entries injected dynamically with typing delays -->
+            </div>
+
+            <!-- Typing Indicator Overlay -->
+            <div id="typing-indicator" class="hidden px-4 py-2 bg-slate-900/80 text-xs text-slate-400 border-t border-slate-800 flex items-center gap-2 italic">
+                <span id="typing-name">Character</span> is typing
+                <span class="typing-dots flex gap-0.5"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+
+            <!-- Decision & Prompt Actions Area -->
+            <div id="dialogue-actions" class="p-3 border-t border-slate-800 bg-slate-900/95 space-y-2">
+                <!-- Interactive Buttons injected here -->
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: Categorized Neural Cortex & Memory Firing Grid (4 Cols) -->
+        <section class="lg:col-span-4 flex flex-col bg-slate-900/70 rounded-xl border border-slate-800 overflow-hidden shadow-lg relative">
+            
+            <!-- Cortex Grid Header & Timer -->
+            <div id="neural-status-header" class="p-3 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
+                    <h3 class="font-bold text-xs text-slate-200 uppercase tracking-wider">Cortex Sector Matrix</h3>
+                </div>
+                <div id="lock-indicator" class="text-[11px] px-2.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1 font-mono-code">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i> STABLE
+                </div>
+            </div>
+
+            <!-- Sector Legend Bar -->
+            <div class="px-3 py-1.5 bg-slate-950 border-b border-slate-800 flex flex-wrap gap-2 text-[9px] font-mono-code justify-between">
+                <span class="flex items-center gap-1 text-cyan-400"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Science</span>
+                <span class="flex items-center gap-1 text-emerald-400"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Social</span>
+                <span class="flex items-center gap-1 text-amber-400"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Sensory</span>
+                <span class="flex items-center gap-1 text-purple-400"><span class="w-2 h-2 rounded-full bg-purple-400"></span> Visual</span>
+                <span class="flex items-center gap-1 text-rose-400"><span class="w-2 h-2 rounded-full bg-rose-400"></span> Emotion</span>
+            </div>
+
+            <!-- Cortical Brain Matrix Canvas -->
+            <div class="flex-1 relative bg-slate-950 flex flex-col">
+                <canvas id="cortexCanvas" class="w-full flex-1 cursor-pointer"></canvas>
+
+                <!-- Frequency Resonance Meter -->
+                <div class="p-2.5 bg-slate-900/90 border-t border-slate-800 space-y-1.5">
+                    <div class="flex justify-between items-center text-[11px]">
+                        <span class="text-slate-400 flex items-center gap-1">
+                            <i data-lucide="orbit" class="w-3.5 h-3.5 text-cyan-400"></i> Resonance Match
+                        </span>
+                        <span id="resonance-val" class="font-mono-code font-bold text-cyan-400">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                        <div id="resonance-bar" class="bg-gradient-to-r from-cyan-500 via-emerald-400 to-amber-400 h-full w-0% rounded-full transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decoded Thought Fragments Terminal -->
+            <div class="h-32 bg-slate-950 border-t border-slate-800 p-3 flex flex-col justify-between font-mono-code text-xs">
+                <div class="flex justify-between text-[10px] text-slate-500 border-b border-slate-800/80 pb-1">
+                    <span>DECODED SYNAPSE THOUGHTS</span>
+                    <span id="nodes-count-tag" class="text-cyan-400">0 NODES LOCKED</span>
+                </div>
+                <div id="thought-terminal" class="flex-1 overflow-y-auto my-1 text-slate-300 space-y-1 text-[11px] pr-1">
+                    <p class="text-slate-600 italic">// Awaiting cortical firing sequence...</p>
+                </div>
+                <div class="pt-1 flex justify-between items-center text-[10px]">
+                    <span class="text-slate-500">CORTEX: TEMPORAL_HIPPOCAMPAL</span>
+                    <span id="timer-display" class="hidden text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        ⏱ TIMEOUT: 25.0s
+                    </span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Notification Overlay -->
+    <div id="scenario-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-2xl text-center space-y-4 glow-cyan">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto">
+                <i data-lucide="award" class="w-6 h-6"></i>
+            </div>
+            <h3 id="modal-title" class="text-xl font-bold text-white">Neural Synapse Decoded</h3>
+            <p id="modal-body" class="text-sm text-slate-300 leading-relaxed">
+                You successfully mapped the cortical firing pattern, unlocking the critical memory!
+            </p>
+            <button onclick="closeModal()" class="w-full py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition-colors shadow-lg">
+                Continue Conversation Stream
+            </button>
+        </div>
+    </div>
+
+    <!-- Application Script Engine -->
+    <script>
+        /* ===================================================================
+           SCENARIO DATA & ANATOMICAL NEURAL SECTORS
+           =================================================================== */
+        const SECTORS = [
+            { id: 'science', name: 'Science & Logic', color: '#06b6d4', ring: '#22d3ee' },
+            { id: 'social',  name: 'Social & Language', color: '#10b981', ring: '#34d399' },
+            { id: 'sensory', name: 'Sensory & Food', color: '#f59e0b', ring: '#fbbf24' },
+            { id: 'visual',  name: 'Visual & Memory', color: '#a855f7', ring: '#c084fc' },
+            { id: 'emotion', name: 'Emotion & Instinct', color: '#f43f5e', ring: '#fb7185' }
+        ];
+
+        const SCENARIOS = [
+            {
+                id: 0,
+                title: "Scenario 1: Ethics Defense",
+                subjectName: "Dr. Aris Thorne",
+                subjectRole: "Chair of Ethics Board",
+                chapter: "ACT I - NEURAL DECODING DEFENSE",
+                portraitType: "thorne",
+                // Multi-stage narrative dialogue with multiple amnesia blocks
+                script: [
+                    { type: 'msg', speaker: "Dr. Aris Thorne", text: "Your research proposal on closed-loop neural decoding sounds promising on paper, researcher.", side: 'npc', delay: 1000 },
+                    { type: 'msg', speaker: "Dr. Aris Thorne", text: "However, bypassing conscious consent protocols for real-time amnesia retrieval crosses a clear ethical boundary.", side: 'npc', delay: 1800 },
+                    { type: 'choice', options: [
+                        { text: "It is not a breach of consent. The BCI only triggers during involuntary cognitive freezes.", nextStep: 1 },
+                        { text: "Ethics must adapt when human memory fails under high stress.", nextStep: 1 }
+                    ]},
+                    // Step 1: First Memory Lock (IEEE Safety Code)
+                    { type: 'msg', speaker: "Dr. Aris Thorne", text: "A theoretical distinction! Can you cite the exact bio-safety compliance code that legalizes sub-threshold cortical feedback?", side: 'npc', delay: 1400 },
+                    { type: 'memory_block', blockId: 'ethics_code_1',
+                        prompt: "RECALL TASK: Fire the Science & Memory sectors to recall the bio-safety standard!",
+                        requiredNodes: [2, 5, 31, 34], // 2 Science + 2 Visual/Memory nodes
+                        fragments: [
+                            { node: 2, text: "Science Sector: Directive 2041 regarding synthetic feedback..." },
+                            { node: 5, text: "Science Sector: Clause 4B sub-threshold potentiometer standard..." },
+                            { node: 31, text: "Memory Sector: Archive IEEE Human Safety Charter..." },
+                            { node: 34, text: "Memory Sector: Full Bio-Safety Standard Code 2041-Clause 4B!" }
+                        ],
+                        impatientMessages: [
+                            "Dr. Aris Thorne: 'Are you leaving me on read right now, researcher?!'",
+                            "Dr. Aris Thorne: 'Your hesitation speaks volumes! Answer the committee!'"
+                        ],
+                        recallChoices: [
+                            { text: "Cite IEEE Bio-Safety Standard 2041, Clause 4B for sub-threshold feedback.", correct: true, reply: "Dr. Thorne pauses and adjusts his glasses. '...Clause 4B? Impressive. You actually know the charter.'" },
+                            { text: "Claim emergency overrides don't require compliance codes.", correct: false, reply: "Dr. Thorne frowns severely. 'Absurd! That violates every safety protocol!'" }
+                        ]
+                    },
+                    // Step 2: Second Dialogue Phase
+                    { type: 'msg', speaker: "Dr. Aris Thorne", text: "Very well. But what about risk of sensory overload or emotional distress during neural forcing?", side: 'npc', delay: 1600 },
+                    { type: 'choice', options: [
+                        { text: "We isolate emotional lobes using limbic dampers during the firing sequence.", nextStep: 2 }
+                    ]},
+                    // Step 3: Second Memory Lock (Limbic Buffer Protocol)
+                    { type: 'msg', speaker: "Dr. Aris Thorne", text: "Prove it! Which cortical sectors must be synchronized to prevent severe panic spikes?", side: 'npc', delay: 1400 },
+                    { type: 'memory_block', blockId: 'ethics_code_2',
+                        prompt: "RECALL TASK: Synchronize Emotion + Sensory + Social sectors to prove safety stabilization!",
+                        requiredNodes: [12, 22, 42], // Social + Sensory + Emotion
+                        fragments: [
+                            { node: 12, text: "Social Sector: Calibrate speech fluidity buffers..." },
+                            { node: 22, text: "Sensory Sector: Dampen autonomic adrenaline surges..." },
+                            { node: 42, text: "Emotion Sector: Limbic Lock active: Panic probability < 1.2%!" }
+                        ],
+                        impatientMessages: [
+                            "Dr. Aris Thorne: 'Did your mind just go completely blank?!'",
+                            "Dr. Aris Thorne: 'I am waiting for your answer!'"
+                        ],
+                        recallChoices: [
+                            { text: "Demonstrate Limbic-Sensory Dampening protocol with live telemetry metrics.", correct: true, reply: "Dr. Thorne examines the telemetry screen. 'The emotion index is rock solid. The committee approves your trial!'" },
+                            { text: "Admit that panic spikes are unavoidable.", correct: false, reply: "Dr. Thorne shakes his head. 'Then this trial is immediately terminated!'" }
+                        ]
+                    }
+                ]
+            },
+            {
+                id: 1,
+                title: "Scenario 2: Cyber Memory Leak",
+                subjectName: "Agent Vance",
+                subjectRole: "Cyber-Forensic Specialist",
+                chapter: "ACT II - MEMORY LEAK INVESTIGATION",
+                portraitType: "vance",
+                script: [
+                    { type: 'msg', speaker: "Agent Vance", text: "We don't have much time! The suspect encrypted the stolen data node right before slipping into a coma.", side: 'npc', delay: 900 },
+                    { type: 'msg', speaker: "Agent Vance", text: "I need you to tap into his temporal cortex and pull out the master encryption passkey.", side: 'npc', delay: 1500 },
+                    { type: 'choice', options: [
+                        { text: "Initiating sub-threshold BCI scanning on the suspect's hippocampal trace.", nextStep: 1 }
+                    ]},
+                    // Step 1: Encryption Cipher Task
+                    { type: 'msg', speaker: "Agent Vance", text: "Hurry! The memory array is degrading fast! Decode the cipher sequence!", side: 'npc', delay: 1200 },
+                    { type: 'memory_block', blockId: 'cyber_passkey',
+                        prompt: "RECALL TASK: Fire Science + Visual + Emotion nodes to crack the cyber cipher!",
+                        requiredNodes: [4, 32, 45, 48],
+                        fragments: [
+                            { node: 4, text: "Science Sector: Hexadecimal cipher key root 0x99..." },
+                            { node: 32, text: "Visual Sector: Visual memory pattern: 'NEXUS'..." },
+                            { node: 45, text: "Emotion Sector: High-stress pulse code: '77-DELTA'..." },
+                            { node: 48, text: "Decoded Passphrase: 'NEXUS-77-DELTA'!" }
+                        ],
+                        impatientMessages: [
+                            "Agent Vance: 'Hey! Are you zoning out on me?!'",
+                            "Agent Vance: 'The terminal is about to wipe itself! HURRY!'"
+                        ],
+                        recallChoices: [
+                            { text: "The master passkey is 'NEXUS-77-DELTA'!", correct: true, reply: "Agent Vance punches the code into his gauntlet. 'Access granted! You saved the database!'" },
+                            { text: "The passcode wiped during the amnesia spike.", correct: false, reply: "Agent Vance punches the desk. 'Damn it! The drive just self-destructed!'" }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        /* ===================================================================
+           GLOBAL STATE MANAGEMENT
+           =================================================================== */
+        let currentScenarioIndex = 0;
+        let scriptIndex = 0;
+        let isMemoryBlocked = false;
+        let activeMemoryBlock = null;
+        let activeNodes = new Set();
+        let audioEnabled = true;
+
+        // Telemetry metrics
+        let stressLevel = 24;
+        let pupilRadius = 3.8;
+        let heartRate = 74;
+
+        // Impatient Timer
+        let timerSeconds = 25.0;
+        let timerInterval = null;
+
+        // Web Audio Synthesizer
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSynthTone(freq, duration = 0.12, type = 'sine', vol = 0.1) {
+            if (!audioEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) { }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('audio-icon');
+            if (audioEnabled) {
+                icon.setAttribute('data-lucide', 'volume-2');
+                playSynthTone(520, 0.1);
+            } else {
+                icon.setAttribute('data-lucide', 'volume-x');
+            }
+            lucide.createIcons();
+        }
+
+        /* ===================================================================
+           EXPRESSIVE 2D VECTOR PORTRAIT CANVAS RENDERER
+           =================================================================== */
+        const portraitCanvas = document.getElementById('portraitCanvas');
+        const pCtx = portraitCanvas.getContext('2d');
+        let blinkProgress = 0;
+        let isBlinking = false;
+        let breathTime = 0;
+
+        function resizePortraitCanvas() {
+            const rect = portraitCanvas.parentElement.getBoundingClientRect();
+            portraitCanvas.width = rect.width;
+            portraitCanvas.height = rect.height;
+        }
+
+        function renderPortrait() {
+            const w = portraitCanvas.width;
+            const h = portraitCanvas.height;
+            if (w === 0 || h === 0) return;
+
+            pCtx.clearRect(0, 0, w, h);
+            breathTime += 0.035;
+            const breathOffsetY = Math.sin(breathTime) * 3;
+
+            // Blink state timing
+            if (!isBlinking && Math.random() < 0.007) {
+                isBlinking = true;
+                blinkProgress = 0;
+            }
+            if (isBlinking) {
+                blinkProgress += 0.18;
+                if (blinkProgress >= 1) {
+                    isBlinking = false;
+                    blinkProgress = 0;
+                }
+            }
+
+            const centerX = w / 2;
+            const centerY = h / 2 + breathOffsetY + 10;
+            const scenario = SCENARIOS[currentScenarioIndex];
+
+            // Radial Aura based on stress
+            const gradRadius = Math.max(w, h) * 0.45;
+            const auraGrad = pCtx.createRadialGradient(centerX, centerY, 20, centerX, centerY, gradRadius);
+            if (isMemoryBlocked) {
+                auraGrad.addColorStop(0, `rgba(239, 68, 68, ${0.15 + (stressLevel / 200)})`);
+                auraGrad.addColorStop(1, 'rgba(5, 8, 17, 0)');
+            } else {
+                auraGrad.addColorStop(0, 'rgba(6, 182, 212, 0.12)');
+                auraGrad.addColorStop(1, 'rgba(5, 8, 17, 0)');
+            }
+            pCtx.fillStyle = auraGrad;
+            pCtx.fillRect(0, 0, w, h);
+
+            pCtx.save();
+            pCtx.translate(centerX, centerY);
+
+            if (scenario.portraitType === 'thorne') {
+                // Dr. Thorne Portrait (Glasses, formal coat)
+                pCtx.fillStyle = '#1e293b';
+                pCtx.beginPath(); pCtx.ellipse(0, 150, 125, 90, 0, Math.PI, 0); pCtx.fill();
+
+                // Collar & Tie
+                pCtx.fillStyle = '#f8fafc';
+                pCtx.beginPath(); pCtx.moveTo(-24, 80); pCtx.lineTo(0, 115); pCtx.lineTo(24, 80); pCtx.fill();
+                pCtx.fillStyle = '#0284c7';
+                pCtx.beginPath(); pCtx.moveTo(-8, 85); pCtx.lineTo(0, 138); pCtx.lineTo(8, 85); pCtx.fill();
+
+                // Face Shape
+                pCtx.fillStyle = '#f1f5f9';
+                pCtx.beginPath(); pCtx.ellipse(0, -20, 64, 78, 0, 0, Math.PI * 2); pCtx.fill();
+
+                // Hair
+                pCtx.fillStyle = '#64748b';
+                pCtx.beginPath(); pCtx.ellipse(0, -74, 66, 28, 0, Math.PI, 0); pCtx.fill();
+
+                // Eyebrows (Angle changes with stress)
+                pCtx.strokeStyle = '#334155';
+                pCtx.lineWidth = 4;
+                pCtx.beginPath();
+                if (stressLevel > 60) {
+                    pCtx.moveTo(-45, -46); pCtx.lineTo(-15, -36);
+                    pCtx.moveTo(45, -46); pCtx.lineTo(15, -36);
+                } else {
+                    pCtx.moveTo(-45, -42); pCtx.lineTo(-15, -43);
+                    pCtx.moveTo(45, -42); pCtx.lineTo(15, -43);
+                }
+                pCtx.stroke();
+
+                // Eyes & Pupils
+                const currentPupilScale = pupilRadius / 3.8;
+                const eyeHeight = isBlinking ? 1 : 12;
+
+                pCtx.fillStyle = '#ffffff';
+                pCtx.beginPath(); pCtx.ellipse(-28, -25, 13, Math.max(1, eyeHeight), 0, 0, Math.PI * 2); pCtx.fill();
+                pCtx.beginPath(); pCtx.ellipse(28, -25, 13, Math.max(1, eyeHeight), 0, 0, Math.PI * 2); pCtx.fill();
+
+                if (!isBlinking) {
+                    pCtx.fillStyle = '#0284c7';
+                    pCtx.beginPath(); pCtx.arc(-28, -25, 5.5 * currentPupilScale, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(28, -25, 5.5 * currentPupilScale, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.fillStyle = '#0f172a';
+                    pCtx.beginPath(); pCtx.arc(-28, -25, 2.5 * currentPupilScale, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(28, -25, 2.5 * currentPupilScale, 0, Math.PI * 2); pCtx.fill();
+                }
+
+                // Glasses
+                pCtx.strokeStyle = '#38bdf8';
+                pCtx.lineWidth = 3;
+                pCtx.strokeRect(-46, -40, 34, 26);
+                pCtx.strokeRect(12, -40, 34, 26);
+                pCtx.beginPath(); pCtx.moveTo(-12, -27); pCtx.lineTo(12, -27); pCtx.stroke();
+
+                // Mouth
+                pCtx.strokeStyle = '#334155';
+                pCtx.lineWidth = 3;
+                pCtx.beginPath();
+                if (stressLevel > 60) {
+                    pCtx.arc(0, 48, 10, Math.PI + 0.3, Math.PI * 2 - 0.3);
+                } else {
+                    pCtx.moveTo(-16, 42); pCtx.lineTo(16, 42);
+                }
+                pCtx.stroke();
+
+            } else {
+                // Agent Vance Portrait
+                pCtx.fillStyle = '#0f172a';
+                pCtx.beginPath(); pCtx.ellipse(0, 150, 130, 95, 0, Math.PI, 0); pCtx.fill();
+                pCtx.strokeStyle = '#06b6d4'; pCtx.lineWidth = 2; pCtx.stroke();
+
+                pCtx.fillStyle = '#e2e8f0';
+                pCtx.beginPath(); pCtx.ellipse(0, -15, 58, 74, 0, 0, Math.PI * 2); pCtx.fill();
+
+                pCtx.fillStyle = '#06b6d4';
+                pCtx.fillRect(54, -22, 9, 24);
+
+                pCtx.fillStyle = '#1e293b';
+                pCtx.beginPath(); pCtx.ellipse(0, -68, 60, 24, 0, Math.PI, 0); pCtx.fill();
+
+                const currentPupilScale = pupilRadius / 3.8;
+                const eyeHeight = isBlinking ? 1 : 10;
+                pCtx.fillStyle = '#ffffff';
+                pCtx.beginPath(); pCtx.ellipse(-25, -22, 11, Math.max(1, eyeHeight), 0, 0, Math.PI * 2); pCtx.fill();
+                pCtx.beginPath(); pCtx.ellipse(25, -22, 11, Math.max(1, eyeHeight), 0, 0, Math.PI * 2); pCtx.fill();
+
+                if (!isBlinking) {
+                    pCtx.fillStyle = '#10b981';
+                    pCtx.beginPath(); pCtx.arc(-25, -22, 5 * currentPupilScale, 0, Math.PI * 2); pCtx.fill();
+                    pCtx.beginPath(); pCtx.arc(25, -22, 5 * currentPupilScale, 0, Math.PI * 2); pCtx.fill();
+                }
+
+                pCtx.strokeStyle = '#475569';
+                pCtx.lineWidth = 3;
+                pCtx.beginPath(); pCtx.moveTo(-14, 38); pCtx.lineTo(14, 38); pCtx.stroke();
+            }
+
+            // Sweat droplets under high stress
+            if (stressLevel > 50) {
+                pCtx.fillStyle = 'rgba(56, 189, 248, 0.75)';
+                pCtx.beginPath(); pCtx.arc(-46, -8 + Math.sin(breathTime * 2.5) * 4, 3.5, 0, Math.PI * 2); pCtx.fill();
+                pCtx.beginPath(); pCtx.arc(48, 14 + Math.cos(breathTime * 2.5) * 4, 3, 0, Math.PI * 2); pCtx.fill();
+            }
+
+            pCtx.restore();
+            requestAnimationFrame(renderPortrait);
+        }
+
+        /* ===================================================================
+           CATEGORIZED NEURAL CORTEX MATRIX CANVAS
+           =================================================================== */
+        const cortexCanvas = document.getElementById('cortexCanvas');
+        const cCtx = cortexCanvas.getContext('2d');
+        let nodes = [];
+        let connections = [];
+
+        function resizeCortexCanvas() {
+            const rect = cortexCanvas.parentElement.getBoundingClientRect();
+            cortexCanvas.width = rect.width;
+            cortexCanvas.height = rect.height;
+            generateCategorizedGrid();
+        }
+
+        window.addEventListener('resize', () => {
+            resizePortraitCanvas();
+            resizeCortexCanvas();
+        });
+
+        function generateCategorizedGrid() {
+            nodes = [];
+            connections = [];
+            const w = cortexCanvas.width;
+            const h = cortexCanvas.height;
+            if (w === 0 || h === 0) return;
+
+            const totalNodes = 50; // 10 nodes per 5 sectors
+            const padding = 35;
+            const sectorHeight = (h - padding * 2) / 5;
+
+            for (let sIdx = 0; sIdx < SECTORS.length; sIdx++) {
+                const sector = SECTORS[sIdx];
+                const minY = padding + sIdx * sectorHeight;
+                const maxY = minY + sectorHeight;
+
+                for (let i = 0; i < 10; i++) {
+                    const nodeId = sIdx * 10 + i;
+                    nodes.push({
+                        id: nodeId,
+                        sector: sector,
+                        x: padding + Math.random() * (w - padding * 2),
+                        y: minY + Math.random() * (maxY - minY - 10),
+                        pulse: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            // Synaptic connections between nearby nodes
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dist = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y);
+                    if (dist < 75) {
+                        connections.push({ from: i, to: j });
+                    }
+                }
+            }
+        }
+
+        function renderCortexGrid() {
+            const w = cortexCanvas.width;
+            const h = cortexCanvas.height;
+            if (w === 0 || h === 0) return;
+
+            cCtx.clearRect(0, 0, w, h);
+
+            // Sector Region Labels in Canvas Background
+            const sectorHeight = (h - 70) / 5;
+            SECTORS.forEach((sec, idx) => {
+                const y = 35 + idx * sectorHeight;
+                cCtx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+                cCtx.fillRect(10, y, w - 20, sectorHeight - 4);
+                
+                cCtx.fillStyle = sec.color;
+                cCtx.font = '10px "Fira Code", monospace';
+                cCtx.fillText(sec.name.toUpperCase(), 18, y + 14);
+            });
+
+            // Draw Synaptic Connections
+            connections.forEach(conn => {
+                const n1 = nodes[conn.from];
+                const n2 = nodes[conn.to];
+                const isActive = activeNodes.has(n1.id) && activeNodes.has(n2.id);
+
+                cCtx.strokeStyle = isActive ? n1.sector.color : 'rgba(51, 65, 85, 0.35)';
+                cCtx.lineWidth = isActive ? 2 : 0.8;
+                cCtx.beginPath();
+                cCtx.moveTo(n1.x, n1.y);
+                cCtx.lineTo(n2.x, n2.y);
+                cCtx.stroke();
+
+                if (isActive) {
+                    const time = Date.now() * 0.004;
+                    const progress = (Math.sin(time + conn.from) + 1) / 2;
+                    const px = n1.x + (n2.x - n1.x) * progress;
+                    const py = n1.y + (n2.y - n1.y) * progress;
+                    cCtx.fillStyle = '#ffffff';
+                    cCtx.beginPath(); cCtx.arc(px, py, 2.5, 0, Math.PI * 2); cCtx.fill();
+                }
+            });
+
+            // Draw Neurons
+            nodes.forEach(node => {
+                node.pulse += 0.04;
+                const isSelected = activeNodes.has(node.id);
+                const pulseRadius = isSelected ? 7 + Math.sin(node.pulse) * 2 : 4.5;
+
+                if (isSelected) {
+                    cCtx.fillStyle = node.sector.color;
+                    cCtx.beginPath();
+                    cCtx.arc(node.x, node.y, pulseRadius * 2.2, 0, Math.PI * 2);
+                    cCtx.fill();
+                }
+
+                cCtx.fillStyle = isSelected ? '#ffffff' : node.sector.color;
+                cCtx.beginPath();
+                cCtx.arc(node.x, node.y, pulseRadius, 0, Math.PI * 2);
+                cCtx.fill();
+
+                cCtx.strokeStyle = isSelected ? node.sector.ring : '#090d16';
+                cCtx.lineWidth = 1.5;
+                cCtx.stroke();
+            });
+
+            requestAnimationFrame(renderCortexGrid);
+        }
+
+        /* Cortex Canvas Node Click Handler */
+        cortexCanvas.addEventListener('click', (e) => {
+            if (!isMemoryBlocked || !activeMemoryBlock) return;
+
+            const rect = cortexCanvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            nodes.forEach(node => {
+                const dist = Math.hypot(node.x - clickX, node.y - clickY);
+                if (dist < 16) {
+                    if (activeNodes.has(node.id)) {
+                        activeNodes.delete(node.id);
+                        playSynthTone(260, 0.08, 'sawtooth');
+                    } else {
+                        activeNodes.add(node.id);
+                        playSynthTone(440 + node.id * 12, 0.1, 'sine');
+                    }
+                    evaluateNeuralMatch();
+                }
+            });
+        });
+
+        /* Evaluate Active Node Match & Resonance */
+        function evaluateNeuralMatch() {
+            if (!activeMemoryBlock) return;
+            const required = activeMemoryBlock.requiredNodes;
+
+            let correctCount = 0;
+            activeNodes.forEach(id => {
+                if (required.includes(id)) correctCount++;
+            });
+
+            const percentage = Math.round((correctCount / required.length) * 100);
+            document.getElementById('resonance-bar').style.width = `${percentage}%`;
+            document.getElementById('resonance-val').innerText = `${percentage}%`;
+            document.getElementById('nodes-count-tag').innerText = `${correctCount}/${required.length} TARGETS LOCKED`;
+
+            // Thought Terminal Readout
+            const terminal = document.getElementById('thought-terminal');
+            terminal.innerHTML = '';
+
+            activeMemoryBlock.fragments.forEach(frag => {
+                if (activeNodes.has(frag.node)) {
+                    const p = document.createElement('p');
+                    p.className = 'text-cyan-400 font-semibold animate-pulse';
+                    p.innerText = `> ${frag.text}`;
+                    terminal.appendChild(p);
+                }
+            });
+
+            if (terminal.children.length === 0) {
+                terminal.innerHTML = '<p class="text-slate-600 italic">// Fire target sector nodes to decode thought fragments...</p>';
+            }
+
+            // Victory check: All required nodes active
+            const allMatch = required.every(id => activeNodes.has(id));
+            if (allMatch) {
+                playSynthTone(880, 0.35, 'sine');
+                resolveMemoryBlock();
+            }
+        }
+
+        /* ===================================================================
+           DYNAMIC DIALOGUE ENGINE WITH TYPING DELAYS & SCRIPT EXECUTION
+           =================================================================== */
+        function executeScriptStep() {
+            const scenario = SCENARIOS[currentScenarioIndex];
+            if (scriptIndex >= scenario.script.length) return;
+
+            const step = scenario.script[scriptIndex];
+
+            if (step.type === 'msg') {
+                showTypingIndicator(step.speaker);
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    appendDialogueMessage(step.speaker, step.text, step.side);
+                    playSynthTone(380, 0.08, 'sine');
+                    scriptIndex++;
+                    executeScriptStep();
+                }, step.delay || 1200);
+
+            } else if (step.type === 'choice') {
+                renderChoiceButtons(step.options);
+
+            } else if (step.type === 'memory_block') {
+                triggerMemoryBlock(step);
+            }
+        }
+
+        function showTypingIndicator(name) {
+            const ind = document.getElementById('typing-indicator');
+            document.getElementById('typing-name').innerText = name;
+            ind.classList.remove('hidden');
+            const container = document.getElementById('dialogue-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typing-indicator').classList.add('hidden');
+        }
+
+        function appendDialogueMessage(speaker, text, side) {
+            const container = document.getElementById('dialogue-container');
+            const isUser = side === 'user';
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex flex-col ${isUser ? 'items-end' : 'items-start'}`;
+
+            msgDiv.innerHTML = `
+                <span class="text-[10px] text-slate-400 mb-1 font-semibold">${speaker}</span>
+                <div class="max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                    isUser 
+                        ? 'bg-cyan-600/30 border border-cyan-500/40 text-cyan-100 rounded-tr-none' 
+                        : 'bg-slate-800/90 border border-slate-700 text-slate-200 rounded-tl-none'
+                }">
+                    ${text}
+                </div>
+            `;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderChoiceButtons(options) {
+            const actionPanel = document.getElementById('dialogue-actions');
+            actionPanel.innerHTML = '';
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs text-slate-200 transition-all flex items-start gap-2 shadow-sm';
+                btn.innerHTML = `<i data-lucide="message-square-plus" class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5"></i> <span>${opt.text}</span>`;
+                btn.onclick = () => {
+                    appendDialogueMessage("You", opt.text, 'user');
+                    playSynthTone(480, 0.1);
+                    actionPanel.innerHTML = '';
+                    scriptIndex++;
+                    executeScriptStep();
+                };
+                actionPanel.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        /* ===================================================================
+           MEMORY AMNESIA LOCK & TIMER ESCALATION LOGIC
+           =================================================================== */
+        function triggerMemoryBlock(blockData) {
+            isMemoryBlocked = true;
+            activeMemoryBlock = blockData;
+
+            stressLevel = 82;
+            pupilRadius = 5.4;
+            heartRate = 115;
+            updateTelemetryUI();
+
+            // Header Alert
+            const header = document.getElementById('neural-status-header');
+            header.className = 'p-3 border-b border-red-500/40 bg-red-950/40 flex items-center justify-between pulse-alert';
+
+            const indicator = document.getElementById('lock-indicator');
+            indicator.className = 'text-[11px] px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40 flex items-center gap-1 font-mono-code font-bold';
+            indicator.innerHTML = `<i data-lucide="lock" class="w-3.5 h-3.5"></i> AMNESIA LOCK`;
+
+            // Prompt Action Box
+            const actionPanel = document.getElementById('dialogue-actions');
+            actionPanel.innerHTML = `
+                <div class="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2 pulse-alert">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i>
+                    <span><strong>${blockData.prompt}</strong></span>
+                </div>
+            `;
+            lucide.createIcons();
+            playSynthTone(180, 0.4, 'sawtooth');
+
+            startImpatientTimer();
+        }
+
+        function startImpatientTimer() {
+            clearInterval(timerInterval);
+            timerSeconds = 25.0;
+
+            const timerDisplay = document.getElementById('timer-display');
+            timerDisplay.classList.remove('hidden');
+            timerDisplay.innerText = `⏱ TIMEOUT: ${timerSeconds.toFixed(1)}s`;
+
+            timerInterval = setInterval(() => {
+                timerSeconds -= 0.1;
+                timerDisplay.innerText = `⏱ TIMEOUT: ${Math.max(0, timerSeconds).toFixed(1)}s`;
+
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    triggerImpatientEscalation();
+                }
+            }, 100);
+        }
+
+        /* Trigger aggressive message if user leaves partner on seen / times out */
+        function triggerImpatientEscalation() {
+            if (!isMemoryBlocked || !activeMemoryBlock) return;
+
+            stressLevel = Math.min(100, stressLevel + 15);
+            pupilRadius = 6.0;
+            heartRate += 15;
+            updateTelemetryUI();
+
+            const msgs = activeMemoryBlock.impatientMessages;
+            const randomMsg = msgs[Math.floor(Math.random() * msgs.length)];
+
+            appendDialogueMessage(SCENARIOS[currentScenarioIndex].subjectName, randomMsg, 'npc');
+            playSynthTone(140, 0.5, 'sawtooth', 0.2);
+
+            // Restart timer for next pressure escalation
+            startImpatientTimer();
+        }
+
+        function resolveMemoryBlock() {
+            isMemoryBlocked = false;
+            clearInterval(timerInterval);
+
+            stressLevel = 28;
+            pupilRadius = 3.8;
+            heartRate = 74;
+            updateTelemetryUI();
+
+            document.getElementById('timer-display').classList.add('hidden');
+
+            const header = document.getElementById('neural-status-header');
+            header.className = 'p-3 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between';
+
+            const indicator = document.getElementById('lock-indicator');
+            indicator.className = 'text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1 font-mono-code font-bold';
+            indicator.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> REASONING RESTORED`;
+
+            // Open Victory Modal
+            document.getElementById('modal-title').innerText = "Neural Memory Synapse Decoded!";
+            document.getElementById('modal-body').innerText = "You successfully synchronized the required cortex sector nodes. The forgotten thought has been fully restored!";
+            document.getElementById('scenario-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('scenario-modal').classList.add('hidden');
+            
+            // Present recall choices after unlocking memory
+            if (activeMemoryBlock && activeMemoryBlock.recallChoices) {
+                renderRecallChoices(activeMemoryBlock.recallChoices);
+            }
+        }
+
+        function renderRecallChoices(choices) {
+            const actionPanel = document.getElementById('dialogue-actions');
+            actionPanel.innerHTML = '';
+
+            choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-2.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs text-slate-200 transition-all flex items-start gap-2 shadow-sm';
+                btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i> <span>${choice.text}</span>`;
+                btn.onclick = () => {
+                    appendDialogueMessage("You", choice.text, 'user');
+                    playSynthTone(520, 0.1);
+                    actionPanel.innerHTML = '';
+                    
+                    showTypingIndicator(SCENARIOS[currentScenarioIndex].subjectName);
+                    setTimeout(() => {
+                        hideTypingIndicator();
+                        appendDialogueMessage(SCENARIOS[currentScenarioIndex].subjectName, choice.reply, 'npc');
+                        activeMemoryBlock = null;
+                        scriptIndex++;
+                        executeScriptStep();
+                    }, 1400);
+                };
+                actionPanel.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        function updateTelemetryUI() {
+            document.getElementById('telemetry-stress').innerText = `${stressLevel}%`;
+            document.getElementById('telemetry-pupil').innerText = `${pupilRadius.toFixed(1)}mm`;
+            document.getElementById('telemetry-bpm').innerText = `${heartRate}`;
+        }
+
+        function switchScenario(index) {
+            currentScenarioIndex = index;
+            scriptIndex = 0;
+            isMemoryBlocked = false;
+            activeMemoryBlock = null;
+            activeNodes.clear();
+            clearInterval(timerInterval);
+
+            const s = SCENARIOS[index];
+            document.getElementById('subject-name').innerText = s.subjectName;
+            document.getElementById('subject-role').innerText = s.subjectRole;
+            document.getElementById('story-chapter-badge').innerText = s.chapter;
+
+            const btn1 = document.getElementById('scenario-1-btn');
+            const btn2 = document.getElementById('scenario-2-btn');
+            if (index === 0) {
+                btn1.className = "px-3 py-1 rounded text-xs font-medium transition-all bg-cyan-600 text-white shadow";
+                btn2.className = "px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white transition-all";
+            } else {
+                btn2.className = "px-3 py-1 rounded text-xs font-medium transition-all bg-cyan-600 text-white shadow";
+                btn1.className = "px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white transition-all";
+            }
+
+            document.getElementById('dialogue-container').innerHTML = '';
+            document.getElementById('resonance-bar').style.width = '0%';
+            document.getElementById('resonance-val').innerText = '0%';
+            document.getElementById('thought-terminal').innerHTML = '<p class="text-slate-600 italic">// Awaiting cortical firing sequence...</p>';
+            document.getElementById('timer-display').classList.add('hidden');
+
+            generateCategorizedGrid();
+            executeScriptStep();
+        }
+
+        /* ===================================================================
+           INITIALIZATION ON LOAD
+           =================================================================== */
+        window.onload = function() {
+            lucide.createIcons();
+            resizePortraitCanvas();
+            resizeCortexCanvas();
+
+            // Start Canvas Animation Render Loops
+            renderPortrait();
+            renderCortexGrid();
+
+            // Begin Narrative Script Stream
+            executeScriptStep();
+        };
+    </script>
+</body>
+</html>
